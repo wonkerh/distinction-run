@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1020">
+<title>Distinction Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Syne:wght@700;800&display=swap">
+<style>
+/* Layout: one column dashboard behind a full-screen loader. Countdown cards, today's schedule beside the focus timer, topic checklists, 13-day plan, rules. Dark first, gold accent, one colour per course. */
+:root {
+  --bg: #0a1020;
+  --surface: #111a2e;
+  --surface2: #172340;
+  --line: #243250;
+  --fg: #e8edf7;
+  --muted: #8d9bb9;
+  --gold: #e3b341;
+  --on-gold: #1a1405;
+  --c204: #5b9dff;
+  --c314: #3fc9b0;
+  --c304: #e3b341;
+  --ok: #3ecf8e;
+  --display: 'Syne', 'Trebuchet MS', system-ui, sans-serif;
+  --body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'DM Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f5fb; --surface: #ffffff; --surface2: #e9eef9; --line: #d3dbed;
+    --fg: #0e1a33; --muted: #53628a; --gold: #8f6300; --on-gold: #ffffff;
+    --c204: #1d5ed6; --c314: #0a7a68; --c304: #8f6300; --ok: #0d8a57;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f3f5fb; --surface: #ffffff; --surface2: #e9eef9; --line: #d3dbed;
+  --fg: #0e1a33; --muted: #53628a; --gold: #8f6300; --on-gold: #ffffff;
+  --c204: #1d5ed6; --c314: #0a7a68; --c304: #8f6300; --ok: #0d8a57;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: 1; letter-spacing: -0.01em; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.35rem; }
+h3 { font-size: 1rem; font-weight: 500; color: var(--muted); }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button { font: inherit; cursor: pointer; }
+
+/* loader */
+#loader { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; transition: opacity 0.45s; }
+#loader.out { opacity: 0; pointer-events: none; }
+.ld-inner { display: flex; flex-direction: column; gap: 18px; width: min(100%, 360px); }
+.ld-title { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 11vw, 3.6rem); line-height: 1; }
+.ld-title span { color: var(--gold); }
+.ld-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.ld-bar i { display: block; height: 100%; width: 0; background: var(--gold); transition: width 0.35s; }
+#ldmsg { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); min-height: 1.4em; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 24px; }
+.top-l { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.top-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.clock { font-family: var(--mono); font-size: 1.05rem; }
+.target { display: inline-flex; gap: 8px; align-items: baseline; border: 1px solid var(--gold); color: var(--gold); border-radius: 999px; padding: 4px 14px; font-family: var(--mono); font-size: 0.85rem; width: fit-content; }
+.target b { font-size: 1.1rem; font-weight: 500; }
+
+.sec-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; margin-bottom: 14px; }
+.sec-head p { color: var(--muted); font-size: 0.85rem; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* countdowns */
+.cd.is-next { border-color: var(--cc); background: var(--surface2); }
+.cd-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.code { font-family: var(--display); font-weight: 800; font-size: 1.5rem; color: var(--cc); letter-spacing: 0.01em; }
+.chip { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; border-radius: 4px; padding: 2px 8px; background: var(--cc); color: var(--bg); }
+.digits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.digits div { display: flex; flex-direction: column; align-items: flex-start; }
+.digits b { font-family: var(--mono); font-weight: 500; font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.digits small { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.state { font-family: var(--display); font-size: 1.6rem; font-weight: 700; color: var(--cc); }
+.when { font-size: 0.85rem; color: var(--muted); }
+.prog { display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; color: var(--muted); }
+.bar { position: relative; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--cc); transition: width 0.3s; }
+
+/* today */
+.today { display: grid; gap: 14px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+@media (max-width: 760px) { .today { grid-template-columns: minmax(0, 1fr); } }
+.focus-line { font-size: 0.95rem; }
+.blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.blocks li { display: grid; grid-template-columns: 6.6rem minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; padding: 9px 10px; border-top: 1px solid var(--line); }
+.blocks li:first-child { border-top: 0; }
+.blocks .t { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.blocks li.past { opacity: 0.45; }
+.blocks li.now { background: var(--surface2); border-radius: 6px; border-top-color: transparent; outline: 1px solid var(--gold); }
+.blocks li.now .t { color: var(--gold); }
+.blocks .nowchip { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.12em; background: var(--gold); color: var(--on-gold); border-radius: 4px; padding: 1px 7px; }
+.empty { color: var(--muted); }
+
+/* timer */
+.timer { align-items: flex-start; }
+.timer .big { font-family: var(--mono); font-size: clamp(3rem, 12vw, 4.2rem); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+.timer .big.brk { color: var(--ok); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 8px; padding: 8px 16px; font-weight: 500; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
+.sessions { font-size: 0.85rem; color: var(--muted); }
+
+/* topics */
+.topics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.topics li { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; }
+.topics label { display: flex; gap: 10px; align-items: flex-start; flex: 1; min-width: 0; cursor: pointer; overflow-wrap: anywhere; }
+.topics input[type=checkbox] { accent-color: var(--cc); width: 18px; height: 18px; margin: 2px 0 0; flex: none; }
+.topics li.done label span { color: var(--muted); text-decoration: line-through; }
+.rm { background: none; border: 0; color: var(--muted); font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
+.rm:hover { color: var(--fg); }
+.add { display: flex; gap: 8px; }
+.add input, .mock input { background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; min-width: 0; }
+.add input { flex: 1; }
+.note { font-size: 0.78rem; color: var(--muted); }
+.mock { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+.mock-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mock input { width: 5.5rem; font-family: var(--mono); }
+.mock label { font-size: 0.85rem; color: var(--muted); }
+.mockbar { height: 8px; overflow: visible; }
+.mockbar i { border-radius: 4px; }
+.mockbar .mark { position: absolute; left: 75%; top: -4px; bottom: -4px; width: 2px; background: var(--gold); }
+.gap { font-size: 0.82rem; font-family: var(--mono); }
+.gap.hit { color: var(--ok); }
+
+/* plan */
+.plan { display: flex; flex-direction: column; padding: 6px 18px; }
+.day { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr); gap: 2px 14px; padding: 11px 0; border-top: 1px solid var(--line); }
+.day:first-child { border-top: 0; }
+.day .d { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
+.day .x { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-width: 0; }
+.day.past { opacity: 0.45; }
+.day.today { background: var(--surface2); margin: 0 -18px; padding-inline: 18px; border-top-color: transparent; outline: 1px solid var(--gold); border-radius: 6px; }
+.day.today .d { color: var(--gold); }
+.tagc { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--cc); }
+.tagc.exam { background: var(--cc); color: var(--bg); border-radius: 4px; padding: 1px 7px; }
+
+.rules { display: grid; gap: 10px 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); padding-left: 0; list-style: none; margin: 0; }
+.rules li { padding: 10px 0; border-top: 1px solid var(--line); }
+
+/* data / footer */
+.data { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.data p { color: var(--muted); font-size: 0.82rem; max-width: 60ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="ld-inner">
+    <span class="eyebrow">UKZN · November 2026 finals</span>
+    <div class="ld-title">Distinction <span>Run</span></div>
+    <div class="ld-bar"><i id="ldbar"></i></div>
+    <p id="ldmsg">Starting</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-l">
+      <span class="eyebrow">UKZN Pietermaritzburg · November 2026 finals</span>
+      <h1>Distinction Run</h1>
+      <span class="target">Target <b>75%</b> in all three</span>
+    </div>
+    <div class="top-r">
+      <span class="clock" id="clock">--</span>
+      <span class="eyebrow" id="lastleft">--</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="h-exams">
+    <div class="sec-head"><h2 id="h-exams">Exam countdown</h2><p>South African time. Venues from the PMB timetable.</p></div>
+    <div class="grid" id="cds"></div>
+  </section>
+
+  <section aria-labelledby="h-today">
+    <div class="sec-head"><h2 id="h-today">Today</h2><p id="todaydate"></p></div>
+    <div class="today">
+      <div class="card">
+        <p class="focus-line" id="focus"></p>
+        <ul class="blocks" id="blocks"></ul>
+      </div>
+      <div class="card timer" aria-label="Focus timer">
+        <span class="eyebrow" id="tmode">Focus 50 min</span>
+        <div class="big" id="tbig" role="timer" aria-live="off">50:00</div>
+        <div class="btns">
+          <button class="btn primary" id="tgo" type="button">Start</button>
+          <button class="btn" id="treset" type="button">Reset</button>
+          <button class="btn" id="tswitch" type="button">Switch</button>
+        </div>
+        <p class="sessions" id="sessions"></p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-topics">
+    <div class="sec-head"><h2 id="h-topics">Topics</h2><p id="savestate">Loading</p></div>
+    <div class="grid" id="topics"></div>
+  </section>
+
+  <section aria-labelledby="h-plan">
+    <div class="sec-head"><h2 id="h-plan">Day by day</h2><p>1 to 13 November</p></div>
+    <div class="card plan" id="plan"></div>
+  </section>
+
+  <section aria-labelledby="h-rules">
+    <div class="sec-head"><h2 id="h-rules">Rules that decide the result</h2></div>
+    <ul class="rules">
+      <li>Attempt on a blank page first, then check, then redo what you got wrong the next day. Do not reread notes.</li>
+      <li>No new material the evening before an exam. Read your summary sheets and sleep.</li>
+      <li>No all-nighters. Sleep protects what you studied.</li>
+      <li>Work 50 minutes, rest 10. Phone in another room during blocks.</li>
+      <li>Write each exam's summary sheet as you go so the last morning is quick.</li>
+      <li>Check the venue the day before and arrive 30 minutes early. Show every step in the paper.</li>
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="h-data">
+    <h2 id="h-data">Your data</h2>
+    <div class="data">
+      <p id="datanote">Progress is stored in a SQLite database inside this browser, on this device. Export a copy to back it up or open it on another device.</p>
+      <div class="btns">
+        <button class="btn" id="exp" type="button">Export .sqlite</button>
+        <button class="btn" id="imp" type="button">Import .sqlite</button>
+        <input id="impfile" type="file" accept=".sqlite,.db,.sqlite3,application/vnd.sqlite3,application/octet-stream" hidden>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var DOWL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+  var HM = function (m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+  var keyOf = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  var $ = function (id) { return document.getElementById(id); };
+
+  var EXAMS = [
+    { id: 'c204', code: 'COMP204', name: 'Computer Organisation and Architecture', start: '2026-11-06T14:00:00+02:00', when: 'Fri 6 Nov · 14:00 · SU Social Space' },
+    { id: 'c314', code: 'COMP314', name: 'Theory of Computation', start: '2026-11-10T09:00:00+02:00', when: 'Tue 10 Nov · 09:00 · Science Access' },
+    { id: 'c304', code: 'COMP304', name: 'Artificial Intelligence', start: '2026-11-13T09:00:00+02:00', when: 'Fri 13 Nov · 09:00 · SU Social Space' }
+  ].map(function (e) { e.ts = new Date(e.start).getTime(); e.end = e.ts + 3 * 3600000; return e; });
+  var BYID = {}; EXAMS.forEach(function (e) { BYID[e.id] = e; });
+
+  var TOPICS = {
+    c204: ['Number systems and arithmetic', 'Boolean algebra and logic gates', 'Combinational circuits', 'Sequential circuits and flip-flops', 'CPU datapath and control unit', 'Instruction sets and assembly', 'Memory hierarchy and cache', 'Pipelining and hazards', 'Input/output and buses', 'Timed past paper 1', 'Timed past paper 2'],
+    c314: ['DFAs and NFAs', 'Regular expressions', 'Pumping lemma for regular languages', 'Context-free grammars', 'Pushdown automata', 'Pumping lemma for context-free languages', 'Turing machines', 'Decidability and the halting problem', 'Reductions', 'P, NP and NP-complete', 'Timed past paper'],
+    c304: ['A* and search traces (frontier, f = g + h, tie-breaks)', 'Define state, moves and heuristic for a new problem', 'Admissible heuristics', 'Alpha-beta pruning (cuts and node values)', 'Clause form: the six conversion steps', 'Resolution proofs', 'Semantic network and backward chaining', 'Genetic algorithm template (chromosome to constraints)', 'Perceptron epochs', 'BAM / heteroassociative training and recall', 'Decision trees: entropy, gain, draw the tree', 'Short descriptions: fuzzy logic, expert systems, GP, neural nets', 'Timed mock: 2024 paper', 'Timed mock: 2018 paper', 'Timed mock: 2017 paper']
+  };
+  var NOTES = {
+    c204: 'Starter list. Replace it with your syllabus using the box below.',
+    c314: 'Starter list. Replace it with your syllabus using the box below.',
+    c304: 'Built from the 2017, 2018 and 2024 papers.'
+  };
+
+  var DEF = function (c) {
+    return [[390, 450, 'Wake, breakfast, no phone'], [450, 690, 'Block 1 · hardest ' + c + ' topic'], [690, 750, 'Lunch and a walk'], [750, 990, 'Block 2 · cold past-paper attempts'], [990, 1050, 'Exercise or rest'], [1050, 1230, 'Block 3 · fix mistakes, redo what you got wrong'], [1230, 1290, 'Dinner and rest'], [1290, 1335, 'COMP304 · templates and one tracing'], [1335, 1350, 'Wind down, sleep 22:30']];
+  };
+  var PLAN = [
+    { d: '2026-11-01', course: null, focus: 'Collect the COMP204 and COMP314 past papers and notes. Write the topic list for each. Sleep by 23:00.', blocks: [[1230, 1380, 'Collect papers and notes, write the topic lists'], [1380, 1440, 'Sleep by 23:00']] },
+    { d: '2026-11-02', course: 'c204', focus: 'COMP204 first pass through every topic. One-page summary per topic.', blocks: DEF('COMP204') },
+    { d: '2026-11-03', course: 'c204', focus: 'COMP204 past-paper questions on a blank page. Check against the memo or notes.', blocks: DEF('COMP204') },
+    { d: '2026-11-04', course: 'c204', focus: 'COMP204 one full timed paper (3 h). Mark it and fix the gaps.', blocks: DEF('COMP204') },
+    { d: '2026-11-05', course: 'c204', focus: 'COMP204 weak topics until 15:00. COMP314 first pass from 16:00.', blocks: [[390, 450, 'Wake, breakfast, no phone'], [450, 900, 'COMP204 weak topics only'], [900, 960, 'Lunch and a walk'], [960, 1230, 'COMP314 first pass'], [1230, 1290, 'Dinner and rest'], [1290, 1335, 'COMP304 · templates and one tracing'], [1335, 1350, 'Wind down, sleep 22:30']] },
+    { d: '2026-11-06', course: 'c204', exam: 'c204', focus: 'COMP204 exam at 14:00, SU Social Space. Summary sheets only this morning.', blocks: [[390, 450, 'Wake, breakfast, no phone'], [450, 690, 'COMP204 summary sheets only'], [690, 780, 'Light lunch'], [780, 810, 'Leave, check the venue'], [810, 840, 'Arrive and settle at SU Social Space'], [840, 1020, 'COMP204 EXAM'], [1020, 1140, 'Rest'], [1140, 1320, 'COMP314 first pass'], [1320, 1350, 'Wind down, sleep 22:30']] },
+    { d: '2026-11-07', course: 'c314', focus: 'COMP314 full day. Topics and past-paper questions.', blocks: DEF('COMP314') },
+    { d: '2026-11-08', course: 'c314', focus: 'COMP314 timed full paper. Mark it and fix the gaps.', blocks: DEF('COMP314') },
+    { d: '2026-11-09', course: 'c314', focus: 'COMP314 weak topics until 17:00. Light review only this evening. Sleep by 22:00.', blocks: [[390, 450, 'Wake, breakfast, no phone'], [450, 690, 'COMP314 weak topics'], [690, 750, 'Lunch and a walk'], [750, 1020, 'COMP314 weak topics'], [1020, 1140, 'Rest'], [1140, 1260, 'Light review only'], [1260, 1320, 'Wind down, sleep 22:00']] },
+    { d: '2026-11-10', course: 'c314', exam: 'c314', focus: 'COMP314 exam at 09:00, Science Access. Then COMP304 from 15:00.', blocks: [[360, 420, 'Wake, breakfast'], [420, 480, 'COMP314 summary sheet only'], [480, 510, 'Leave, check the venue'], [510, 540, 'Arrive and settle at Science Access'], [540, 720, 'COMP314 EXAM'], [720, 900, 'Rest and lunch'], [900, 1230, 'COMP304 · logic, GA templates, A*'], [1230, 1290, 'Dinner and rest'], [1290, 1335, 'COMP304 · alpha-beta tracing'], [1335, 1350, 'Wind down, sleep 22:30']] },
+    { d: '2026-11-11', course: 'c304', focus: 'COMP304 full day: logic and resolution, GA templates, A*, alpha-beta.', blocks: DEF('COMP304') },
+    { d: '2026-11-12', course: 'c304', focus: 'COMP304 timed mock (3 h), then perceptron, BAM, decision trees and short descriptions.', blocks: [[390, 450, 'Wake, breakfast, no phone'], [450, 630, 'COMP304 timed mock (3 h)'], [630, 690, 'Mark the mock'], [690, 750, 'Lunch and a walk'], [750, 990, 'Perceptron, BAM, decision trees'], [990, 1050, 'Exercise or rest'], [1050, 1200, 'Short descriptions and templates'], [1200, 1260, 'Stop. Dinner. No new material'], [1260, 1320, 'Wind down, sleep 22:00']] },
+    { d: '2026-11-13', course: 'c304', exam: 'c304', focus: 'COMP304 exam at 09:00, SU Social Space. Scan your templates, nothing new.', blocks: [[390, 480, 'Scan templates only, nothing new'], [480, 510, 'Leave, check the venue'], [510, 540, 'Arrive and settle at SU Social Space'], [540, 720, 'COMP304 EXAM']] }
+  ];
+
+  /* ================= storage: SQLite in the browser, saved to IndexedDB ================= */
+  var COURSES = ['c204', 'c314', 'c304'];
+  var S = { done: {}, custom: { c204: [], c314: [], c304: [] }, mock: { c204: '', c314: '', c304: '' }, pomo: {} };
+  var A = null; // active storage adapter
+  var SQLM = null;
+
+  var SCHEMA =
+    'CREATE TABLE IF NOT EXISTS topic_done (key TEXT PRIMARY KEY);' +
+    'CREATE TABLE IF NOT EXISTS custom_topic (id TEXT PRIMARY KEY, course TEXT NOT NULL, label TEXT NOT NULL, pos INTEGER NOT NULL);' +
+    'CREATE TABLE IF NOT EXISTS mock_score (course TEXT PRIMARY KEY, score REAL NOT NULL);' +
+    'CREATE TABLE IF NOT EXISTS focus_session (day TEXT PRIMARY KEY, n INTEGER NOT NULL);';
+
+  var CDNS = ['https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/', 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/'];
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('load ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function getSQL() {
+    var i = 0;
+    function next() {
+      if (i >= CDNS.length) return Promise.resolve(null);
+      var base = CDNS[i++];
+      return loadScript(base + 'sql-wasm.js').then(function () {
+        return window.initSqlJs({ locateFile: function (f) { return base + f; } });
+      }).catch(next);
+    }
+    return next();
+  }
+
+  var idbConn = null;
+  function idb() {
+    if (idbConn) return idbConn;
+    idbConn = new Promise(function (res, rej) {
+      if (!window.indexedDB) { rej(new Error('no idb')); return; }
+      var r = indexedDB.open('distinction-run', 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+    return idbConn;
+  }
+  function idbGet(k) {
+    return idb().then(function (d) {
+      return new Promise(function (res, rej) {
+        var q = d.transaction('kv').objectStore('kv').get(k);
+        q.onsuccess = function () { res(q.result); }; q.onerror = function () { rej(q.error); };
+      });
+    });
+  }
+  function idbPut(k, v) {
+    return idb().then(function (d) {
+      return new Promise(function (res, rej) {
+        var tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k);
+        tx.oncomplete = function () { res(); }; tx.onerror = function () { rej(tx.error); };
+      });
+    });
+  }
+
+  function setStatus(t) { $('savestate').textContent = t; }
+
+  function sqlAdapter(SQL, bytes) {
+    var DB, timer = null, chain = Promise.resolve();
+    function open(b) {
+      var d = b ? new SQL.Database(b) : new SQL.Database();
+      d.run(SCHEMA);
+      return d;
+    }
+    function rows(sql) {
+      var st = DB.prepare(sql), out = [];
+      while (st.step()) out.push(st.getAsObject());
+      st.free();
+      return out;
+    }
+    try { DB = open(bytes); } catch (e) { DB = open(null); }
+    function save() {
+      var data = DB.export();
+      chain = chain.then(function () { return idbPut('db', data); }).then(function () { setStatus('Saved to SQLite'); }, function () { setStatus('Could not save to this browser'); });
+      return chain;
+    }
+    function later() { setStatus('Saving'); clearTimeout(timer); timer = setTimeout(save, 300); }
+    var api = {
+      kind: 'sqlite',
+      load: function () {
+        var s = { done: {}, custom: { c204: [], c314: [], c304: [] }, mock: { c204: '', c314: '', c304: '' }, pomo: {} };
+        rows('SELECT key FROM topic_done').forEach(function (r) { s.done[r.key] = true; });
+        rows('SELECT id, course, label FROM custom_topic ORDER BY pos').forEach(function (r) { if (s.custom[r.course]) s.custom[r.course].push({ id: r.id, t: r.label }); });
+        rows('SELECT course, score FROM mock_score').forEach(function (r) { if (s.mock[r.course] !== undefined) s.mock[r.course] = String(r.score); });
+        rows('SELECT day, n FROM focus_session').forEach(function (r) { s.pomo[r.day] = r.n; });
+        return s;
+      },
+      setDone: function (k, on) {
+        if (on) DB.run('INSERT OR IGNORE INTO topic_done(key) VALUES (?)', [k]); else DB.run('DELETE FROM topic_done WHERE key = ?', [k]);
+        later();
+      },
+      addCustom: function (course, id, label, pos) { DB.run('INSERT INTO custom_topic(id, course, label, pos) VALUES (?,?,?,?)', [id, course, label, pos]); later(); },
+      removeCustom: function (id) { DB.run('DELETE FROM custom_topic WHERE id = ?', [id]); DB.run('DELETE FROM topic_done WHERE key = ?', [id]); later(); },
+      setMock: function (course, v) {
+        var n = parseFloat(v);
+        if (isNaN(n)) DB.run('DELETE FROM mock_score WHERE course = ?', [course]);
+        else DB.run('INSERT OR REPLACE INTO mock_score(course, score) VALUES (?,?)', [course, n]);
+        later();
+      },
+      incPomo: function (day) { DB.run('INSERT INTO focus_session(day, n) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET n = n + 1', [day]); later(); },
+      flushNow: function () { clearTimeout(timer); return save(); },
+      exportBytes: function () { return DB.export(); },
+      replace: function (b) {
+        var nd = new SQL.Database(b);
+        var ok = nd.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='topic_done'");
+        if (!ok.length) { nd.close(); throw new Error('not a Distinction Run database'); }
+        nd.run(SCHEMA);
+        DB.close(); DB = nd; return save();
+      }
+    };
+    return api;
+  }
+
+  function lsAdapter() {
+    var KEY = 'distinction-run-fallback', st = null;
+    try { st = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    if (!st || !st.done) st = { done: {}, custom: { c204: [], c314: [], c304: [] }, mock: { c204: '', c314: '', c304: '' }, pomo: {} };
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); setStatus('Saved in browser storage'); } catch (e) { setStatus('Could not save to this browser'); } }
+    return {
+      kind: 'local',
+      load: function () { return JSON.parse(JSON.stringify(st)); },
+      setDone: function (k, on) { if (on) st.done[k] = true; else delete st.done[k]; save(); },
+      addCustom: function (course, id, label) { st.custom[course].push({ id: id, t: label }); save(); },
+      removeCustom: function (id) { COURSES.forEach(function (c) { st.custom[c] = st.custom[c].filter(function (x) { return x.id !== id; }); }); delete st.done[id]; save(); },
+      setMock: function (course, v) { st.mock[course] = v; save(); },
+      incPomo: function (day) { st.pomo[day] = (st.pomo[day] || 0) + 1; save(); },
+      flushNow: function () { save(); return Promise.resolve(); },
+      exportBytes: null, replace: null
+    };
+  }
+
+  /* ================= countdown cards ================= */
+  var lastMin = -1;
+  function buildCountdowns() {
+    $('cds').innerHTML = EXAMS.map(function (e) {
+      return '<article class="card cd" data-exam="' + e.id + '" style="--cc:var(--' + e.id + ')">' +
+        '<div class="cd-top"><span class="code">' + e.code + '</span><span class="chip" data-next hidden>Next</span></div>' +
+        '<h3>' + esc(e.name) + '</h3>' +
+        '<div class="digits" data-digits><div><b data-u="d">00</b><small>days</small></div><div><b data-u="h">00</b><small>hours</small></div><div><b data-u="m">00</b><small>min</small></div><div><b data-u="s">00</b><small>sec</small></div></div>' +
+        '<p class="state" data-state hidden></p>' +
+        '<p class="when">' + esc(e.when) + '</p>' +
+        '<div class="prog"><span class="mono" data-prog></span><div class="bar"><i data-bar></i></div></div>' +
+        '</article>';
+    }).join('');
+  }
+  function counts(id) {
+    var total = TOPICS[id].length + S.custom[id].length, done = 0;
+    TOPICS[id].forEach(function (_, i) { if (S.done[id + ':' + i]) done++; });
+    S.custom[id].forEach(function (c) { if (S.done[c.id]) done++; });
+    return { total: total, done: done };
+  }
+  function updateProgress() {
+    EXAMS.forEach(function (e) {
+      var c = counts(e.id), pct = c.total ? Math.round(c.done / c.total * 100) : 0;
+      document.querySelectorAll('[data-exam="' + e.id + '"] [data-prog], [data-topic="' + e.id + '"] [data-prog]').forEach(function (n) { n.textContent = 'Topics ' + c.done + ' / ' + c.total + ' · ' + pct + '%'; });
+      document.querySelectorAll('[data-exam="' + e.id + '"] [data-bar], [data-topic="' + e.id + '"] [data-bar]').forEach(function (n) { n.style.width = pct + '%'; });
+    });
+  }
+  function tick() {
+    var now = Date.now(), d = new Date(now), nextId = null;
+    EXAMS.forEach(function (e) { if (!nextId && e.end > now) nextId = e.id; });
+    EXAMS.forEach(function (e) {
+      var card = document.querySelector('[data-exam="' + e.id + '"]');
+      if (!card) return;
+      var diff = e.ts - now, digits = card.querySelector('[data-digits]'), st = card.querySelector('[data-state]');
+      if (diff > 0) {
+        var s = Math.floor(diff / 1000);
+        var v = { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600), m: Math.floor(s % 3600 / 60), s: s % 60 };
+        ['d', 'h', 'm', 's'].forEach(function (u) { card.querySelector('[data-u="' + u + '"]').textContent = pad(v[u]); });
+        digits.hidden = false; st.hidden = true;
+      } else {
+        digits.hidden = true; st.hidden = false;
+        st.textContent = now < e.end ? 'In progress' : 'Written';
+      }
+      card.classList.toggle('is-next', e.id === nextId);
+      card.querySelector('[data-next]').hidden = e.id !== nextId;
+    });
+    $('clock').textContent = DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    var last = EXAMS[EXAMS.length - 1], dl = Math.ceil((last.ts - now) / 86400000);
+    $('lastleft').textContent = now >= last.end ? 'All papers written' : dl + (dl === 1 ? ' day' : ' days') + ' to the last paper';
+    var mk = d.getHours() * 60 + d.getMinutes();
+    if (mk !== lastMin) { lastMin = mk; renderToday(); }
+  }
+
+  /* ================= today ================= */
+  function renderToday() {
+    var d = new Date(), key = keyOf(d), mins = d.getHours() * 60 + d.getMinutes();
+    $('todaydate').textContent = DOWL[d.getDay()] + ' ' + d.getDate() + ' ' + MONL[d.getMonth()];
+    var p = PLAN.filter(function (x) { return x.d === key; })[0];
+    var f = $('focus'), ul = $('blocks');
+    if (!p) {
+      var first = PLAN[0].d, lastD = PLAN[PLAN.length - 1].d;
+      f.textContent = key < first ? 'The plan starts on 1 November.' : (key > lastD ? 'The plan ended on 13 November. All three papers are done.' : 'No plan entry for today.');
+      ul.innerHTML = ''; return;
+    }
+    f.innerHTML = '<span class="eyebrow">Focus</span><br>' + esc(p.focus);
+    var bl = p.blocks, startMin = bl[0][0], endMin = bl[bl.length - 1][1], html = '';
+    bl.forEach(function (b) {
+      var cls = mins >= b[1] ? 'past' : (mins >= b[0] ? 'now' : '');
+      html += '<li class="' + cls + '"><span class="t">' + HM(b[0]) + ' – ' + HM(b[1]) + '</span><span>' + esc(b[2]) + '</span>' + (cls === 'now' ? '<span class="nowchip">NOW</span>' : '<span></span>') + '</li>';
+    });
+    if (mins < startMin) html = '<li class="empty"><span class="t">Before ' + HM(startMin) + '</span><span>' + (mins < 360 ? 'Sleep. First block at ' + HM(startMin) + '.' : 'First block starts at ' + HM(startMin) + '.') + '</span><span></span></li>' + html;
+    else if (mins >= endMin && key !== '2026-11-01') html += '<li class="empty"><span class="t">Now</span><span>Sleep.</span><span></span></li>';
+    ul.innerHTML = html;
+  }
+
+  /* ================= plan ================= */
+  function renderPlan() {
+    var key = keyOf(new Date());
+    $('plan').innerHTML = PLAN.map(function (p) {
+      var dt = new Date(p.d + 'T12:00:00');
+      var cls = 'day' + (p.d < key ? ' past' : '') + (p.d === key ? ' today' : '');
+      var tag;
+      if (p.exam) tag = '<span class="tagc exam" style="--cc:var(--' + p.exam + ')">' + BYID[p.exam].code + ' EXAM</span>';
+      else if (p.course) tag = '<span class="tagc" style="--cc:var(--' + p.course + ')">' + BYID[p.course].code + '</span>';
+      else tag = '<span class="tagc" style="--cc:var(--muted)">SETUP</span>';
+      return '<div class="' + cls + '"><span class="d">' + DOW[dt.getDay()] + ' ' + dt.getDate() + ' ' + MON[dt.getMonth()] + '</span><div class="x">' + tag + '<span>' + esc(p.focus) + '</span></div></div>';
+    }).join('');
+  }
+
+  /* ================= topics ================= */
+  function topicCard(e) {
+    var id = e.id, items = '';
+    TOPICS[id].forEach(function (t, i) {
+      var k = id + ':' + i, on = !!S.done[k];
+      items += '<li class="' + (on ? 'done' : '') + '"><label><input type="checkbox" data-k="' + k + '"' + (on ? ' checked' : '') + '><span>' + esc(t) + '</span></label></li>';
+    });
+    S.custom[id].forEach(function (c) {
+      var on = !!S.done[c.id];
+      items += '<li class="' + (on ? 'done' : '') + '"><label><input type="checkbox" data-k="' + c.id + '"' + (on ? ' checked' : '') + '><span>' + esc(c.t) + '</span></label><button class="rm" type="button" data-rm="' + c.id + '" aria-label="Remove ' + esc(c.t) + '">Remove</button></li>';
+    });
+    return '<article class="card" data-topic="' + id + '" style="--cc:var(--' + id + ')">' +
+      '<div class="cd-top"><span class="code">' + e.code + '</span></div>' +
+      '<div class="prog"><span class="mono" data-prog></span><div class="bar"><i data-bar></i></div></div>' +
+      '<p class="note">' + NOTES[id] + '</p>' +
+      '<ul class="topics">' + items + '</ul>' +
+      '<form class="add" data-add="' + id + '"><input id="add-' + id + '" type="text" placeholder="Add a topic" aria-label="Add a topic to ' + e.code + '" maxlength="120"><button class="btn" type="submit">Add</button></form>' +
+      '<div class="mock"><div class="mock-row"><label for="mock-' + id + '">Latest mock %</label><input id="mock-' + id + '" type="number" min="0" max="100" inputmode="numeric" value="' + esc(S.mock[id]) + '" data-mock="' + id + '"><span class="gap mono" data-gap="' + id + '"></span></div>' +
+      '<div class="bar mockbar" aria-hidden="true"><i data-mbar="' + id + '"></i><b class="mark"></b></div></div>' +
+      '</article>';
+  }
+  function renderTopics() {
+    $('topics').innerHTML = EXAMS.map(topicCard).join('');
+    EXAMS.forEach(function (e) { drawMock(e.id); });
+    updateProgress();
+  }
+  function drawMock(id) {
+    var v = parseFloat(S.mock[id]), g = document.querySelector('[data-gap="' + id + '"]'), b = document.querySelector('[data-mbar="' + id + '"]');
+    if (!g || !b) return;
+    if (isNaN(v)) { g.textContent = 'Enter your score'; g.classList.remove('hit'); b.style.width = '0'; b.style.background = ''; return; }
+    v = Math.max(0, Math.min(100, v));
+    b.style.width = v + '%';
+    if (v >= 75) { g.textContent = 'On target'; g.classList.add('hit'); b.style.background = 'var(--ok)'; }
+    else { g.textContent = (75 - v).toFixed(v % 1 ? 1 : 0) + ' to go'; g.classList.remove('hit'); b.style.background = ''; }
+  }
+
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.matches && t.matches('input[data-k]')) {
+      var k = t.getAttribute('data-k');
+      if (t.checked) S.done[k] = true; else delete S.done[k];
+      t.closest('li').classList.toggle('done', t.checked);
+      updateProgress(); A.setDone(k, t.checked);
+    }
+  });
+  document.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (t.matches && t.matches('input[data-mock]')) {
+      var id = t.getAttribute('data-mock'); S.mock[id] = t.value; drawMock(id); A.setMock(id, t.value);
+    }
+  });
+  document.addEventListener('submit', function (ev) {
+    var f = ev.target;
+    if (f.matches && f.matches('form[data-add]')) {
+      ev.preventDefault();
+      var id = f.getAttribute('data-add'), v = f.querySelector('input').value.trim();
+      if (!v) return;
+      var item = { id: 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1000), t: v };
+      S.custom[id].push(item);
+      A.addCustom(id, item.id, v, S.custom[id].length);
+      renderTopics();
+      var again = $('add-' + id); if (again) again.focus();
+    }
+  });
+  document.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (t.matches && t.matches('button[data-rm]')) {
+      var k = t.getAttribute('data-rm');
+      COURSES.forEach(function (c) { S.custom[c] = S.custom[c].filter(function (x) { return x.id !== k; }); });
+      delete S.done[k]; A.removeCustom(k); renderTopics();
+    }
+  });
+
+  /* ================= export / import ================= */
+  $('exp').addEventListener('click', function () {
+    if (!A || !A.exportBytes) { setStatus('Export needs the SQLite engine, which did not load'); return; }
+    var blob = new Blob([A.exportBytes()], { type: 'application/vnd.sqlite3' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'distinction-run.sqlite';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  });
+  $('imp').addEventListener('click', function () { $('impfile').click(); });
+  $('impfile').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    if (!A || !A.replace) { setStatus('Import needs the SQLite engine, which did not load'); return; }
+    f.arrayBuffer().then(function (buf) {
+      return A.replace(new Uint8Array(buf));
+    }).then(function () {
+      S = A.load(); renderTopics(); drawTimer(); setStatus('Imported and saved to SQLite');
+    }).catch(function (e) { setStatus('Import failed: ' + (e && e.message ? e.message : 'unreadable file')); });
+    this.value = '';
+  });
+
+  /* ================= focus timer ================= */
+  var T = { mode: 'focus', left: 50 * 60000, running: false, end: 0 };
+  var LEN = { focus: 50 * 60000, brk: 10 * 60000 };
+  function drawTimer() {
+    var s = Math.ceil(T.left / 1000), big = $('tbig');
+    big.textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+    big.classList.toggle('brk', T.mode === 'brk');
+    $('tmode').textContent = T.mode === 'focus' ? 'Focus 50 min' : 'Break 10 min';
+    $('tgo').textContent = T.running ? 'Pause' : 'Start';
+    var n = S.pomo[keyOf(new Date())] || 0;
+    $('sessions').textContent = n + (n === 1 ? ' focus session' : ' focus sessions') + ' finished today';
+  }
+  function chime() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      var c = new AC(), o = c.createOscillator(), g = c.createGain();
+      o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.5);
+    } catch (e) {}
+  }
+  function timerLoop() {
+    if (T.running) {
+      T.left = Math.max(0, T.end - Date.now());
+      if (T.left === 0) {
+        T.running = false;
+        if (T.mode === 'focus') { var k = keyOf(new Date()); S.pomo[k] = (S.pomo[k] || 0) + 1; A.incPomo(k); }
+        T.mode = T.mode === 'focus' ? 'brk' : 'focus'; T.left = LEN[T.mode];
+        chime();
+      }
+    }
+    drawTimer();
+  }
+  $('tgo').addEventListener('click', function () {
+    if (T.running) { T.left = Math.max(0, T.end - Date.now()); T.running = false; }
+    else { T.end = Date.now() + T.left; T.running = true; }
+    drawTimer();
+  });
+  $('treset').addEventListener('click', function () { T.running = false; T.left = LEN[T.mode]; drawTimer(); });
+  $('tswitch').addEventListener('click', function () { T.running = false; T.mode = T.mode === 'focus' ? 'brk' : 'focus'; T.left = LEN[T.mode]; drawTimer(); });
+
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && A) A.flushNow(); });
+  window.addEventListener('pagehide', function () { if (A) A.flushNow(); });
+
+  /* ================= boot with loading screen ================= */
+  function step(pct, msg) { $('ldbar').style.width = pct + '%'; $('ldmsg').textContent = msg; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function boot() {
+    var t0 = Date.now();
+    step(12, 'Loading the SQLite engine');
+    var withTimeout = function (p, ms) { return Promise.race([p, wait(ms).then(function () { return null; })]); };
+    return withTimeout(getSQL(), 12000).then(function (SQL) {
+      SQLM = SQL;
+      step(55, SQL ? 'Opening your database' : 'Engine unavailable, using browser storage');
+      if (!SQL) return null;
+      return idbGet('db').catch(function () { return null; }).then(function (bytes) { return sqlAdapter(SQL, bytes || null); });
+    }).catch(function () { return null; }).then(function (adapter) {
+      A = adapter || lsAdapter();
+      step(80, 'Restoring your progress');
+      S = A.load();
+      buildCountdowns(); renderTopics(); renderPlan(); drawTimer(); tick();
+      setStatus(A.kind === 'sqlite' ? 'Saved to SQLite' : 'Saved in browser storage');
+      if (A.kind !== 'sqlite') $('datanote').textContent = 'The SQLite engine could not load, so progress is saved in plain browser storage for now. Check your connection and reload to switch to SQLite.';
+      setInterval(tick, 1000); setInterval(timerLoop, 250);
+      step(100, 'Ready');
+      return wait(Math.max(0, 900 - (Date.now() - t0)));
+    }).then(function () {
+      var l = $('loader'); l.classList.add('out');
+      setTimeout(function () { l.hidden = true; }, 500);
+    });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
